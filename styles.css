@@ -1,0 +1,95 @@
+:root {
+  --bg: #f8f9fb;
+  --surface: #ffffff;
+  --text: #0f1b2d;
+  --muted: #5a6778;
+  --accent: #f7931a;
+  --border: #d6dce4;
+  --up: #1a7f4b;
+  --down: #c0392b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e141c;
+    --surface: #17202b;
+    --text: #e8edf3;
+    --muted: #97a3b3;
+    --border: #2c3846;
+    --up: #4cc38a;
+    --down: #ef6b5b;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 17px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.wrap { max-width: 720px; margin: 0 auto; padding: 48px 16px; }
+
+.eyebrow {
+  color: var(--accent);
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  font-size: 14px;
+  margin: 0;
+}
+
+h1 { font-size: clamp(28px, 6vw, 42px); line-height: 1.15; margin: 8px 0 12px; }
+.lede { color: var(--muted); margin: 0 0 32px; }
+
+.calc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  align-items: center;
+  font-size: 19px;
+}
+
+.calc label { display: flex; align-items: center; gap: 8px; }
+
+.calc input, .calc select {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+
+.calc input { width: 90px; }
+.money, .pct { position: relative; display: inline-flex; align-items: center; }
+.money::before { content: "$"; position: absolute; left: 10px; color: var(--muted); }
+.money input { padding-left: 22px; }
+.pct::after { content: "%"; position: absolute; right: 10px; color: var(--muted); }
+.pct input { padding-right: 26px; width: 80px; }
+
+.result {
+  margin-top: 32px;
+  padding: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.headline { font-size: 22px; margin: 0 0 16px; }
+.status { color: var(--muted); margin: 0; }
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  margin: 0;
+}
+.stats dt { color: var(--muted); font-size: 14px; }
+.stats dd { margin: 0; font-size: 20px; font-weight: 600; }
+.up { color: var(--up); }
+.down { color: var(--down); }
+
+.fine { color: var(--muted); font-size: 13px; margin-top: 32px; }
