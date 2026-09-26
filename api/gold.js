@@ -2,7 +2,10 @@
 // Gold price sources don't allow browsers to fetch them directly, so this fetches server-side.
 // Vercel's CDN caches the response, so the sources are hit a few times a day at most.
 
-const YAHOO_PATH = "/v8/finance/chart/GC=F?range=max&interval=1d";
+// An explicit period keeps daily candles; range=max makes Yahoo silently switch to ~quarterly ones.
+const YAHOO_START = Date.UTC(2000, 0, 1) / 1000;
+const yahooPath = () =>
+  `/v8/finance/chart/GC=F?period1=${YAHOO_START}&period2=${Math.floor(Date.now() / 1000)}&interval=1d`;
 const STOOQ_URL = "https://stooq.com/q/d/l/?s=xauusd&i=d";
 // Yahoo tends to refuse requests that don't look like a regular browser.
 const HEADERS = {
@@ -15,6 +18,8 @@ const HEADERS = {
 function parseYahoo(json) {
   const result = json && json.chart && json.chart.result && json.chart.result[0];
   if (!result) throw new Error("Unexpected Yahoo response");
+  const granularity = result.meta && result.meta.dataGranularity;
+  if (granularity && granularity !== "1d") throw new Error(`Yahoo returned ${granularity} prices, not daily`);
   const closes = result.indicators.quote[0].close;
   return result.timestamp
     .map((t, i) => [t * 1000, closes[i]])
@@ -39,7 +44,7 @@ async function fetchChecked(url) {
   return res;
 }
 
-const yahoo = (host) => async () => parseYahoo(await (await fetchChecked(`https://${host}${YAHOO_PATH}`)).json());
+const yahoo = (host) => async () => parseYahoo(await (await fetchChecked(`https://${host}${yahooPath()}`)).json());
 
 const SOURCES = [
   ["Yahoo Finance (COMEX gold futures)", yahoo("query1.finance.yahoo.com")],

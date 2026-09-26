@@ -10,6 +10,19 @@ test("parses Yahoo chart JSON and drops missing closes", () => {
   assert.deepStrictEqual(prices, [[100000, 1200.5], [300000, 1210]]);
 });
 
+test("rejects Yahoo data that isn't daily", () => {
+  const json = { chart: { result: [{ meta: { dataGranularity: "3mo" }, timestamp: [1], indicators: { quote: [{ close: [1] }] } }] } };
+  assert.throws(() => parseYahoo(json), /3mo prices, not daily/);
+});
+
+test("handler asks Yahoo for an explicit daily period", async (t) => {
+  const urls = [];
+  t.mock.method(globalThis, "fetch", async (url) => { urls.push(url); return { ok: false, status: 500 }; });
+  t.mock.method(console, "warn", () => {});
+  await handler({}, { setHeader() {}, status() { return this; }, json() {} });
+  assert.match(urls[0], /GC=F\?period1=946684800&period2=\d+&interval=1d$/);
+});
+
 test("parses Stooq CSV", () => {
   const prices = parseStooq("Date,Open,High,Low,Close\r\n2010-07-19,1,2,0.5,1190.5\r\n2010-07-20,1,2,0.5,1195\r\n");
   assert.deepStrictEqual(prices, [[Date.UTC(2010, 6, 19), 1190.5], [Date.UTC(2010, 6, 20), 1195]]);
