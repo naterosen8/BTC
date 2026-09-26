@@ -1,5 +1,5 @@
 // Draws "worth" vs. "put in" over time as an SVG line chart with a hover/keyboard crosshair,
-// plus a yearly table of the same numbers. Expects a simulateDca() result.
+// plus a yearly table of the same numbers. Expects a valueSeries() result.
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 const MAX_POINTS = 400;
@@ -20,11 +20,11 @@ function el(name, attrs = {}, parent) {
   return node;
 }
 
-// One point per purchase, thinned to MAX_POINTS, plus today's value at the latest price.
-function chartPoints(r, endTime) {
-  const step = Math.max(1, Math.ceil(r.buys.length / MAX_POINTS));
-  const pts = r.buys.filter((_, i) => i % step === 0);
-  pts.push({ time: endTime, invested: r.invested, value: r.value });
+// Thin the daily series to MAX_POINTS, always keeping the last (today's) point.
+function chartPoints(series) {
+  const step = Math.max(1, Math.ceil(series.length / MAX_POINTS));
+  const pts = series.filter((_, i) => i % step === 0);
+  if (pts[pts.length - 1] !== series[series.length - 1]) pts.push(series[series.length - 1]);
   return pts;
 }
 
@@ -44,9 +44,10 @@ function yearTicks(t0, t1, maxTicks) {
   return ticks;
 }
 
-function drawChart(container, r, endTime) {
+function drawChart(container, series) {
   container.textContent = "";
-  const pts = chartPoints(r, endTime);
+  const pts = chartPoints(series);
+  const final = series[series.length - 1];
   const width = Math.max(280, container.clientWidth);
   const w = width - M.left - M.right;
   const h = HEIGHT - M.top - M.bottom;
@@ -62,7 +63,7 @@ function drawChart(container, r, endTime) {
   const svg = el("svg", {
     width, height: HEIGHT, viewBox: `0 0 ${width} ${HEIGHT}`,
     class: "chart-svg", tabindex: 0, role: "img",
-    "aria-label": `Line chart: put in grows to ${fullUsd(r.invested)}, worth ends at ${fullUsd(r.value)}. Use arrow keys to step through dates.`,
+    "aria-label": `Line chart: put in ${fullUsd(final.invested)}, worth ends at ${fullUsd(final.value)}. Use arrow keys to step through dates.`,
   }, container);
 
   // Grid and axes.
@@ -165,23 +166,24 @@ function drawChart(container, r, endTime) {
   });
 }
 
-// One row per year (first purchase on or after Jan 1), plus today.
-function drawTable(tbody, r, endTime) {
+// One row per year (first day of each year in the series), plus today.
+function drawTable(tbody, series) {
   const rows = [];
   let lastYear = null;
-  for (const b of r.buys) {
-    const year = new Date(b.time).getUTCFullYear();
+  for (const p of series) {
+    const year = new Date(p.time).getUTCFullYear();
     if (year !== lastYear) {
-      rows.push(b);
+      rows.push(p);
       lastYear = year;
     }
   }
-  rows.push({ time: endTime, invested: r.invested, value: r.value, today: true });
+  const final = series[series.length - 1];
+  if (rows[rows.length - 1] !== final) rows.push(final);
 
-  tbody.replaceChildren(...rows.map((b) => {
+  tbody.replaceChildren(...rows.map((p) => {
     const tr = document.createElement("tr");
-    const cells = [b.today ? `${shortDate(b.time)} (latest)` : shortDate(b.time), fullUsd(b.invested), fullUsd(b.value), fullUsd(b.value - b.invested)];
-    for (const text of cells) {
+    const label = p === final ? `${shortDate(p.time)} (latest)` : shortDate(p.time);
+    for (const text of [label, fullUsd(p.invested), fullUsd(p.value), fullUsd(p.value - p.invested)]) {
       const td = document.createElement("td");
       td.textContent = text;
       tr.appendChild(td);

@@ -10,8 +10,8 @@
 <body>
   <main class="wrap">
     <p class="eyebrow">Dollar-cost averaging</p>
-    <h1>What if you'd bought a little Bitcoin every <span id="freq-word">week</span>?</h1>
-    <p class="lede">Pick an amount and a time period. We replay real historical prices to show what you'd have today.</p>
+    <h1 id="headline">What if you'd bought a little Bitcoin every week?</h1>
+    <p class="lede">Pick an amount and how often, or a single date. We replay real historical prices to show what you'd have today.</p>
 
     <form id="dca-form" class="calc">
       <label>
@@ -19,14 +19,19 @@
         <span class="money"><input id="amount" type="number" min="1" step="1" value="5" inputmode="decimal"></span>
       </label>
       <label>
-        every
-        <select id="frequency">
+        <span id="every-word">every</span>
+        <select id="frequency" aria-label="How often">
           <option value="daily">day</option>
           <option value="weekly" selected>week</option>
           <option value="monthly">month</option>
+          <option value="once">once</option>
         </select>
       </label>
-      <label>
+      <label id="date-label" hidden>
+        on
+        <input id="buy-date" type="date" required>
+      </label>
+      <label id="period-label">
         <select id="period" aria-label="Time period">
           <option value="1">for the last year</option>
           <option value="2">for the last 2 years</option>

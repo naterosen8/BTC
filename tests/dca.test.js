@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert");
-const { priceAt, simulateDca } = require("../js/dca.js");
+const { priceAt, simulateDca, valueSeries } = require("../js/dca.js");
 
 const DAY = 24 * 60 * 60 * 1000;
 const daily = (days, priceFn) =>
@@ -61,4 +61,26 @@ test("endTime replays another asset on the same dates and values it then", () =>
 test("endTime mode refuses to start before the asset's history", () => {
   const gold = daily(100, () => 1);
   assert.throws(() => simulateDca(gold, { amount: 5, startTime: -DAY, endTime: 50 * DAY }), /Not enough/);
+});
+
+test("once buys a single time on the start date", () => {
+  const prices = daily(800, (i) => 100 + i);
+  const r = simulateDca(prices, { amount: 1000, frequency: "once", startTime: 100 * DAY });
+  assert.strictEqual(r.buys.length, 1);
+  assert.strictEqual(r.invested, 1000);
+  assert.ok(Math.abs(r.units - 1000 / 200) < 1e-12);
+  assert.ok(Math.abs(r.value - (1000 / 200) * 900) < 1e-9);
+});
+
+test("valueSeries tracks daily value between purchases and ends at the result", () => {
+  const prices = daily(30, (i) => 10 + i);
+  const r = simulateDca(prices, { amount: 10, frequency: "weekly", startTime: 0 });
+  const s = valueSeries(prices, r);
+  assert.strictEqual(s.length, 31);
+  assert.strictEqual(s[3].invested, 10); // still only the first buy on day 3
+  assert.ok(Math.abs(s[3].value - (10 / 10) * 13) < 1e-12);
+  assert.strictEqual(s[7].invested, 20); // second buy lands on day 7
+  const last = s[s.length - 1];
+  assert.strictEqual(last.invested, r.invested);
+  assert.ok(Math.abs(last.value - r.value) < 1e-9);
 });

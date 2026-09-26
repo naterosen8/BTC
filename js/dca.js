@@ -6,6 +6,7 @@ const FREQUENCY_DAYS = {
   daily: 1,
   weekly: 7,
   monthly: 30,
+  once: Infinity, // a single purchase on the start date
 };
 
 // Returns the last price at or before `time`, or null if none.
@@ -76,6 +77,24 @@ function simulateDca(prices, { amount, years, startTime, endTime, frequency = "w
   };
 }
 
+// Day-by-day holdings for a simulateDca() result: what had been put in, and what it was
+// worth at each daily price, from the first purchase to the end. Used for the chart.
+function valueSeries(prices, r) {
+  const first = r.buys[0];
+  const series = [{ time: first.time, invested: first.invested, value: first.value }];
+  let b = 0;
+  for (const p of prices) {
+    if (p.time <= r.startTime) continue;
+    if (p.time > r.endTime) break;
+    while (b + 1 < r.buys.length && r.buys[b + 1].time <= p.time) b++;
+    series.push({ time: p.time, invested: r.buys[b].invested, value: r.buys[b].units * p.price });
+  }
+  if (series[series.length - 1].time < r.endTime) {
+    series.push({ time: r.endTime, invested: r.invested, value: r.value });
+  }
+  return series;
+}
+
 if (typeof module !== "undefined") {
-  module.exports = { priceAt, simulateDca };
+  module.exports = { priceAt, simulateDca, valueSeries };
 }

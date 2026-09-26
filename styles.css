@@ -22,6 +22,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 
 body {
   margin: 0;
@@ -64,6 +65,8 @@ h1 { font-size: clamp(28px, 6vw, 42px); line-height: 1.15; margin: 8px 0 12px; }
 }
 
 .calc input { width: 90px; }
+.money input { width: 120px; }
+.calc input[type="date"] { width: auto; }
 .money, .pct { position: relative; display: inline-flex; align-items: center; }
 .money::before { content: "$"; position: absolute; left: 10px; color: var(--muted); }
 .money input { padding-left: 22px; }
