@@ -2,9 +2,14 @@
 // Gold price sources don't allow browsers to fetch them directly, so this fetches server-side.
 // Vercel's CDN caches the response, so the sources are hit a few times a day at most.
 
-const YAHOO_URL = "https://query1.finance.yahoo.com/v8/finance/chart/GC=F?range=max&interval=1d";
+const YAHOO_PATH = "/v8/finance/chart/GC=F?range=max&interval=1d";
 const STOOQ_URL = "https://stooq.com/q/d/l/?s=xauusd&i=d";
-const HEADERS = { "User-Agent": "Mozilla/5.0 (compatible; btc-dca-calculator)" };
+// Yahoo tends to refuse requests that don't look like a regular browser.
+const HEADERS = {
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
+  Accept: "application/json,text/csv,*/*",
+};
 
 // Yahoo Finance chart API, gold futures (continuous front month), daily closes.
 function parseYahoo(json) {
@@ -34,12 +39,16 @@ async function fetchChecked(url) {
   return res;
 }
 
+const yahoo = (host) => async () => parseYahoo(await (await fetchChecked(`https://${host}${YAHOO_PATH}`)).json());
+
 const SOURCES = [
-  ["Yahoo Finance (COMEX gold futures)", async () => parseYahoo(await (await fetchChecked(YAHOO_URL)).json())],
+  ["Yahoo Finance (COMEX gold futures)", yahoo("query1.finance.yahoo.com")],
+  ["Yahoo Finance (COMEX gold futures)", yahoo("query2.finance.yahoo.com")],
   ["Stooq (spot gold)", async () => parseStooq(await (await fetchChecked(STOOQ_URL)).text())],
 ];
 
 async function handler(req, res) {
+  const failures = [];
   for (const [source, load] of SOURCES) {
     try {
       const prices = await load();
@@ -50,10 +59,12 @@ async function handler(req, res) {
       return;
     } catch (err) {
       console.warn(`Gold source failed: ${source}`, err);
+      failures.push(`${source}: ${err.message}`);
     }
   }
   res.setHeader("Cache-Control", "no-store");
-  res.status(502).json({ error: "Couldn't load gold prices right now." });
+  // The reasons are safe to show (status codes and parse errors) and make failures diagnosable.
+  res.status(502).json({ error: "Couldn't load gold prices right now.", failures });
 }
 
 module.exports = handler;

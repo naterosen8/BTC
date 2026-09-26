@@ -49,4 +49,6 @@ test("handler returns 502 when every source fails", async (t) => {
   const res = fakeRes();
   await handler({}, res);
   assert.strictEqual(res.code, 502);
+  assert.strictEqual(res.body.failures.length, 3);
+  assert.match(res.body.failures[0], /returned 500/);
 });
