@@ -3,7 +3,13 @@
 const form = document.getElementById("dca-form");
 const result = document.getElementById("result");
 const sourceNote = document.getElementById("source");
+const chartCard = document.getElementById("chart-card");
+const chart = document.getElementById("chart");
+const chartRows = document.getElementById("chart-rows");
+const freqWord = document.getElementById("freq-word");
+const FREQ_WORDS = { daily: "day", weekly: "week", monthly: "month" };
 let prices = null;
+let lastResult = null;
 
 const usd = (n) =>
   n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
@@ -17,7 +23,12 @@ function periodOptions(value) {
   return { years: Number(value) };
 }
 
+function drawCurrentChart() {
+  if (lastResult) drawChart(chart, lastResult, prices[prices.length - 1].time);
+}
+
 function render() {
+  freqWord.textContent = FREQ_WORDS[document.getElementById("frequency").value];
   if (!prices) return;
   const opts = {
     amount: Number(document.getElementById("amount").value),
@@ -37,12 +48,24 @@ function render() {
         <div><dt>Purchases</dt><dd>${r.buys.length.toLocaleString("en-US")}</dd></div>
         <div><dt>First buy</dt><dd>${day(r.buys[0].time)}</dd></div>
       </dl>`;
+    lastResult = r;
+    chartCard.hidden = false;
+    drawCurrentChart();
+    drawTable(chartRows, r, prices[prices.length - 1].time);
   } catch (err) {
+    lastResult = null;
+    chartCard.hidden = true;
     result.innerHTML = `<p class="status">${err.message}</p>`;
   }
 }
 
 form.addEventListener("input", render);
+
+let resizeTimer;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(drawCurrentChart, 100);
+});
 
 loadPrices()
   .then(({ prices: loaded, source, stale }) => {
