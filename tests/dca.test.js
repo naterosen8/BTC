@@ -47,3 +47,18 @@ test("startTime runs from that date, clamped to the first price", () => {
   const all = simulateDca(prices, { amount: 5, startTime: -Infinity, frequency: "daily" });
   assert.strictEqual(all.buys.length, 801);
 });
+
+test("endTime replays another asset on the same dates and values it then", () => {
+  const btc = daily(800, () => 100);
+  const gold = daily(900, (i) => (i <= 800 ? 10 : 50)); // gold has later prices than btc
+  const a = simulateDca(btc, { amount: 5, years: 1 });
+  const g = simulateDca(gold, { amount: 5, frequency: "weekly", startTime: a.startTime, endTime: a.endTime });
+  assert.strictEqual(g.buys.length, a.buys.length);
+  assert.strictEqual(g.invested, a.invested);
+  assert.ok(Math.abs(g.value - g.invested) < 1e-9); // valued at day 800, before the jump
+});
+
+test("endTime mode refuses to start before the asset's history", () => {
+  const gold = daily(100, () => 1);
+  assert.throws(() => simulateDca(gold, { amount: 5, startTime: -DAY, endTime: 50 * DAY }), /Not enough/);
+});

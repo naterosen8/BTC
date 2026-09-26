@@ -1,5 +1,6 @@
-// Loads daily BTC/USD prices in the browser: Coin Metrics first, Blockchain.com as backup,
-// and a copy saved in this browser as a last resort. Returns [{ time: ms, price: number }].
+// Loads daily prices in the browser, trying each source in order, with a copy saved in this
+// browser as a last resort. Prices are [{ time: ms, price: number }].
+// Bitcoin: Coin Metrics, then Blockchain.com. Gold: this site's /api/gold (see api/gold.js).
 
 const COINMETRICS_URL =
   "https://community-api.coinmetrics.io/v4/timeseries/asset-metrics" +
@@ -7,7 +8,7 @@ const COINMETRICS_URL =
 const BLOCKCHAIN_URL =
   "https://api.blockchain.info/charts/market-price?timespan=all&format=json&sampled=false&cors=true";
 
-const CACHE_KEY = "btc-prices-v1";
+const GOLD_URL = "/api/gold";
 const CACHE_FRESH_MS = 6 * 60 * 60 * 1000;
 
 function parseCoinMetrics(json) {
@@ -49,47 +50,62 @@ async function fetchBlockchain() {
   return parseBlockchain(await getJson(BLOCKCHAIN_URL));
 }
 
-function readCache() {
+async function fetchGold() {
+  const json = await getJson(GOLD_URL);
+  return { source: json.source, prices: json.prices.map(([time, price]) => ({ time, price })) };
+}
+
+function readCache(key) {
   try {
-    return JSON.parse(localStorage.getItem(CACHE_KEY));
+    return JSON.parse(localStorage.getItem(key));
   } catch {
     return null;
   }
 }
 
-function writeCache(entry) {
+function writeCache(key, entry) {
   try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(entry));
+    localStorage.setItem(key, JSON.stringify(entry));
   } catch {
     // Storage full or blocked; the site still works without it.
   }
 }
 
-// Resolves to { prices, source, fetchedAt, stale }.
-async function loadPrices() {
-  const cached = readCache();
+// Tries each [name, fetcher] in order. A fetcher returns prices, or { source, prices } to
+// name its own source. Resolves to { prices, source, fetchedAt, stale }.
+async function loadSeries(cacheKey, sources, label) {
+  const cached = readCache(cacheKey);
   if (cached && Date.now() - cached.fetchedAt < CACHE_FRESH_MS) {
     return { ...cached, stale: false };
   }
 
-  const sources = [
-    ["Coin Metrics", fetchCoinMetrics],
-    ["Blockchain.com", fetchBlockchain],
-  ];
-  for (const [source, fetcher] of sources) {
+  for (const [name, fetcher] of sources) {
     try {
-      const prices = sortUnique(await fetcher());
+      const got = await fetcher();
+      const source = got.source || name;
+      const prices = sortUnique(got.prices || got);
       if (prices.length < 365) throw new Error(`${source} returned too little data`);
       const entry = { prices, source, fetchedAt: Date.now() };
-      writeCache(entry);
+      writeCache(cacheKey, entry);
       return { ...entry, stale: false };
     } catch (err) {
-      console.warn(`Price source failed: ${source}`, err);
+      console.warn(`Price source failed: ${name}`, err);
     }
   }
 
   if (cached) return { ...cached, stale: true };
-  throw new Error("Couldn't load Bitcoin prices right now. Please try again in a bit.");
+  throw new Error(`Couldn't load ${label} prices right now. Please try again in a bit.`);
+}
+
+function loadPrices() {
+  return loadSeries("btc-prices-v1", [
+    ["Coin Metrics", fetchCoinMetrics],
+    ["Blockchain.com", fetchBlockchain],
+  ], "Bitcoin");
+}
+
+function loadGoldPrices() {
+  return loadSeries("gold-prices-v1", [["Gold", fetchGold]], "gold");
 }
 
 if (typeof module !== "undefined") {

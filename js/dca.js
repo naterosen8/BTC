@@ -26,18 +26,24 @@ function priceAt(prices, time) {
   return found;
 }
 
-// Simulates buying `amount` dollars of BTC every `frequency`, ending at the most recent price.
+// Simulates buying `amount` dollars of an asset every `frequency`, valued at the end.
 // The period is either the last `years`, or from `startTime` (ms), clamped to the first price.
-// `feePct` is taken out of each purchase.
-function simulateDca(prices, { amount, years, startTime, frequency = "weekly", feePct = 0 }) {
+// Pass `endTime` to value the stack on a set date instead of the latest price; this is how
+// other assets are replayed on exactly the same purchase dates as Bitcoin.
+// `feePct` is taken out of each purchase. `units` is the amount of the asset owned (BTC, oz...).
+function simulateDca(prices, { amount, years, startTime, endTime, frequency = "weekly", feePct = 0 }) {
   if (!prices.length) throw new Error("No price data");
   if (!(amount > 0)) throw new Error("Amount must be positive");
   const stepDays = FREQUENCY_DAYS[frequency];
   if (!stepDays) throw new Error(`Unknown frequency: ${frequency}`);
 
-  const end = prices[prices.length - 1];
+  const last = prices[prices.length - 1];
+  const end = endTime === undefined ? last : { time: endTime, price: (priceAt(prices, endTime) || {}).price };
   let start;
   if (startTime !== undefined) {
+    if (endTime !== undefined && startTime < prices[0].time) {
+      throw new Error("Not enough price history for that period");
+    }
     start = Math.max(startTime, prices[0].time);
   } else {
     if (!(years > 0)) throw new Error("Years must be positive");
@@ -47,22 +53,25 @@ function simulateDca(prices, { amount, years, startTime, frequency = "weekly", f
   if (start > end.time) throw new Error("That start date is after the latest price");
 
   let invested = 0;
-  let btc = 0;
+  let units = 0;
   const buys = [];
   for (let t = start; t <= end.time; t += stepDays * DAY_MS) {
     const p = priceAt(prices, t);
     invested += amount;
-    btc += (amount * (1 - feePct / 100)) / p.price;
-    buys.push({ time: t, price: p.price, invested, btc, value: btc * p.price });
+    units += (amount * (1 - feePct / 100)) / p.price;
+    buys.push({ time: t, price: p.price, invested, units, value: units * p.price });
   }
 
-  const value = btc * end.price;
+  const value = units * end.price;
   return {
     invested,
-    btc,
+    units,
+    btc: units,
     value,
     gain: value - invested,
     gainPct: ((value - invested) / invested) * 100,
+    startTime: start,
+    endTime: end.time,
     buys,
   };
 }
