@@ -15,7 +15,7 @@ node --test tests/*.test.js   # run the calculator tests
 ## Roadmap
 
 1. [x] Page layout, calculator form, and tested DCA math
-2. [ ] Real historical Bitcoin price data
+2. [x] Live daily prices since July 2010 (Coin Metrics, with Blockchain.com as backup)
 3. [ ] Chart of amount invested vs. value over time
 4. [ ] Explainer: what DCA is, its risks, and how fees and timing change results
 5. [ ] Publish on GitHub Pages

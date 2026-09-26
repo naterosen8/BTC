@@ -26,18 +26,25 @@ function priceAt(prices, time) {
   return found;
 }
 
-// Simulates buying `amount` dollars of BTC every `frequency` over the last `years`,
-// ending at the most recent price. `feePct` is taken out of each purchase.
-function simulateDca(prices, { amount, years, frequency = "weekly", feePct = 0 }) {
+// Simulates buying `amount` dollars of BTC every `frequency`, ending at the most recent price.
+// The period is either the last `years`, or from `startTime` (ms), clamped to the first price.
+// `feePct` is taken out of each purchase.
+function simulateDca(prices, { amount, years, startTime, frequency = "weekly", feePct = 0 }) {
   if (!prices.length) throw new Error("No price data");
   if (!(amount > 0)) throw new Error("Amount must be positive");
-  if (!(years > 0)) throw new Error("Years must be positive");
   const stepDays = FREQUENCY_DAYS[frequency];
   if (!stepDays) throw new Error(`Unknown frequency: ${frequency}`);
 
   const end = prices[prices.length - 1];
-  const start = end.time - years * 365 * DAY_MS;
-  if (start < prices[0].time) throw new Error("Not enough price history for that period");
+  let start;
+  if (startTime !== undefined) {
+    start = Math.max(startTime, prices[0].time);
+  } else {
+    if (!(years > 0)) throw new Error("Years must be positive");
+    start = end.time - years * 365 * DAY_MS;
+    if (start < prices[0].time) throw new Error("Not enough price history for that period");
+  }
+  if (start > end.time) throw new Error("That start date is after the latest price");
 
   let invested = 0;
   let btc = 0;

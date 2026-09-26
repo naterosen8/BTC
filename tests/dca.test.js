@@ -39,3 +39,11 @@ test("fees reduce the BTC bought", () => {
 test("rejects periods longer than the data", () => {
   assert.throws(() => simulateDca(daily(100, () => 1), { amount: 5, years: 1 }), /Not enough/);
 });
+
+test("startTime runs from that date, clamped to the first price", () => {
+  const prices = daily(800, () => 100);
+  const r = simulateDca(prices, { amount: 5, startTime: 100 * DAY, frequency: "daily" });
+  assert.strictEqual(r.buys.length, 701);
+  const all = simulateDca(prices, { amount: 5, startTime: -Infinity, frequency: "daily" });
+  assert.strictEqual(all.buys.length, 801);
+});

@@ -1,19 +1,29 @@
-// Wires the form to the DCA math. Expects data/prices.json as [[timeMs, priceUsd], ...].
+// Wires the form to the DCA math and the live price loader.
 
 const form = document.getElementById("dca-form");
 const result = document.getElementById("result");
+const sourceNote = document.getElementById("source");
 let prices = null;
 
 const usd = (n) =>
   n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+const day = (ms) =>
+  new Date(ms).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
+
+// The period dropdown holds "5" (last 5 years), "since:2013", or "all".
+function periodOptions(value) {
+  if (value === "all") return { startTime: -Infinity };
+  if (value.startsWith("since:")) return { startTime: Date.UTC(Number(value.slice(6)), 0, 1) };
+  return { years: Number(value) };
+}
 
 function render() {
   if (!prices) return;
   const opts = {
     amount: Number(document.getElementById("amount").value),
     frequency: document.getElementById("frequency").value,
-    years: Number(document.getElementById("years").value),
     feePct: Number(document.getElementById("fee").value) || 0,
+    ...periodOptions(document.getElementById("period").value),
   };
   try {
     const r = simulateDca(prices, opts);
@@ -22,9 +32,10 @@ function render() {
       <p class="headline">You'd have put in <strong>${usd(r.invested)}</strong>,
       now worth <strong>${usd(r.value)}</strong>.</p>
       <dl class="stats">
-        <div><dt>Gain / loss</dt><dd class="${up ? "up" : "down"}">${up ? "+" : ""}${usd(r.gain)} (${r.gainPct.toFixed(0)}%)</dd></div>
-        <div><dt>Bitcoin owned</dt><dd>${r.btc.toFixed(6)} BTC</dd></div>
-        <div><dt>Purchases</dt><dd>${r.buys.length}</dd></div>
+        <div><dt>Gain / loss</dt><dd class="${up ? "up" : "down"}">${up ? "+" : ""}${usd(r.gain)} (${up ? "+" : ""}${Math.round(r.gainPct).toLocaleString("en-US")}%)</dd></div>
+        <div><dt>Bitcoin owned</dt><dd>${r.btc.toLocaleString("en-US", { maximumFractionDigits: 6 })} BTC</dd></div>
+        <div><dt>Purchases</dt><dd>${r.buys.length.toLocaleString("en-US")}</dd></div>
+        <div><dt>First buy</dt><dd>${day(r.buys[0].time)}</dd></div>
       </dl>`;
   } catch (err) {
     result.innerHTML = `<p class="status">${err.message}</p>`;
@@ -33,15 +44,16 @@ function render() {
 
 form.addEventListener("input", render);
 
-fetch("data/prices.json")
-  .then((res) => {
-    if (!res.ok) throw new Error(res.status);
-    return res.json();
-  })
-  .then((rows) => {
-    prices = rows.map(([time, price]) => ({ time, price }));
+loadPrices()
+  .then(({ prices: loaded, source, stale }) => {
+    prices = loaded;
+    const last = prices[prices.length - 1];
+    sourceNote.textContent =
+      `Daily prices from ${source}, ${day(prices[0].time)} to ${day(last.time)} ` +
+      `(latest ${usd(last.price)}).` +
+      (stale ? " Couldn't refresh just now, so these are saved prices." : "");
     render();
   })
-  .catch(() => {
-    result.innerHTML = `<p class="status">Price data isn't connected yet. That's the next step.</p>`;
+  .catch((err) => {
+    result.innerHTML = `<p class="status">${err.message}</p>`;
   });
