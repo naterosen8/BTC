@@ -16,6 +16,8 @@ const compare = document.getElementById("compare");
 const compareSummary = document.getElementById("compare-summary");
 const compareRows = document.getElementById("compare-rows");
 const goldSourceNote = document.getElementById("gold-source");
+const ride = document.getElementById("ride");
+const $ = (id) => document.getElementById(id);
 let prices = null;
 let lastResult = null;
 let gold = null; // { prices } once loaded, { error } if it failed
@@ -109,6 +111,33 @@ function renderCompare(btcResult, opts) {
     `${leader} finished ${usd(Math.abs(diff))} ahead.`;
 }
 
+// The biggest fall, the lowest point vs. money put in, and how often the stack was ahead.
+function renderRide(series) {
+  const { maxDrop, lowest, inProfitPct } = rideStats(series);
+  ride.hidden = false;
+
+  const drop = $("ride-drop");
+  drop.className = `ride-value ${maxDrop.pct < 0 ? "down" : ""}`;
+  drop.textContent = maxDrop.pct < 0 ? signedPct(maxDrop.pct) : "None";
+  $("ride-drop-detail").textContent = maxDrop.pct < 0
+    ? `From ${usd(maxDrop.peak.value)} on ${day(maxDrop.peak.time)} to ${usd(maxDrop.trough.value)} on ${day(maxDrop.trough.time)}.`
+    : "It never fell below a previous high.";
+
+  const low = $("ride-low");
+  const under = lowest.pct < 0;
+  low.className = `ride-value ${under ? "down" : "up"}`;
+  low.textContent = under ? signedPct(lowest.pct) : "Never below";
+  $("ride-low-detail").textContent = under
+    ? `On ${day(lowest.point.time)} it was worth ${usd(lowest.point.value)} after you'd put in ${usd(lowest.point.invested)}.`
+    : "It was never worth less than you'd put in.";
+
+  $("ride-profit").className = "ride-value";
+  $("ride-profit").textContent = `${Math.round(inProfitPct)}%`;
+  const aheadDays = Math.round((inProfitPct / 100) * series.length);
+  $("ride-profit-detail").textContent =
+    `Worth at least what you'd put in on ${aheadDays.toLocaleString("en-US")} of ${series.length.toLocaleString("en-US")} days.`;
+}
+
 function drawCurrentChart() {
   if (lastResult) drawChart(chart, lastResult.series);
 }
@@ -137,6 +166,7 @@ function render() {
       </dl>`;
     const series = valueSeries(prices, r);
     lastResult = { ...r, series };
+    renderRide(series);
     renderCompare(r, opts);
     chartCard.hidden = false;
     drawCurrentChart();
@@ -145,6 +175,7 @@ function render() {
     lastResult = null;
     chartCard.hidden = true;
     compare.hidden = true;
+    ride.hidden = true;
     result.innerHTML = `<p class="status">${err.message}</p>`;
   }
 }

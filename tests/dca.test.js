@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert");
-const { priceAt, simulateDca, valueSeries } = require("../js/dca.js");
+const { priceAt, simulateDca, valueSeries, rideStats } = require("../js/dca.js");
 
 const DAY = 24 * 60 * 60 * 1000;
 const daily = (days, priceFn) =>
@@ -83,4 +83,30 @@ test("valueSeries tracks daily value between purchases and ends at the result", 
   const last = s[s.length - 1];
   assert.strictEqual(last.invested, r.invested);
   assert.ok(Math.abs(last.value - r.value) < 1e-9);
+});
+
+test("rideStats finds the biggest drop, the lowest point vs. put in, and time in profit", () => {
+  const pt = (day, invested, value) => ({ time: day * DAY, invested, value });
+  const series = [pt(0, 100, 100), pt(1, 100, 150), pt(2, 100, 60), pt(3, 100, 90), pt(4, 100, 200)];
+  const s = rideStats(series);
+  assert.ok(Math.abs(s.maxDrop.pct - -60) < 1e-9); // 150 -> 60
+  assert.strictEqual(s.maxDrop.peak.time, 1 * DAY);
+  assert.strictEqual(s.maxDrop.trough.time, 2 * DAY);
+  assert.ok(Math.abs(s.lowest.pct - -40) < 1e-9); // worth 60 after putting in 100
+  assert.strictEqual(s.lowest.point.time, 2 * DAY);
+  assert.strictEqual(s.inProfitPct, 60); // days 0, 1, 4
+});
+
+test("rideStats on a stack that only went up", () => {
+  const s = rideStats([{ time: 0, invested: 10, value: 10 }, { time: DAY, invested: 10, value: 12 }]);
+  assert.strictEqual(s.maxDrop.pct, 0);
+  assert.strictEqual(s.lowest.pct, 0);
+  assert.strictEqual(s.inProfitPct, 100);
+});
+
+test("rideStats: new purchases after a high are not counted as recovery from a drop", () => {
+  // Value falls from 200 to 150 while $100 more goes in; the drop is still measured on value.
+  const s = rideStats([{ time: 0, invested: 100, value: 200 }, { time: DAY, invested: 200, value: 150 }]);
+  assert.ok(Math.abs(s.maxDrop.pct - -25) < 1e-9);
+  assert.ok(Math.abs(s.lowest.pct - -25) < 1e-9);
 });

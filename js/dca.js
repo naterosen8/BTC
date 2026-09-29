@@ -95,6 +95,25 @@ function valueSeries(prices, r) {
   return series;
 }
 
+// What holding felt like, from a valueSeries(): the biggest fall from a high (maxDrop), the point
+// where the stack was furthest below what had been put in (lowest), and the share of days the
+// stack was worth at least what had been put in (inProfitPct). Percentages are negative for losses.
+function rideStats(series) {
+  let peak = series[0];
+  let maxDrop = { pct: 0, peak: series[0], trough: series[0] };
+  let lowest = { pct: Infinity, point: series[0] };
+  let inProfit = 0;
+  for (const p of series) {
+    if (p.value > peak.value) peak = p;
+    const drop = peak.value > 0 ? (p.value / peak.value - 1) * 100 : 0;
+    if (drop < maxDrop.pct) maxDrop = { pct: drop, peak, trough: p };
+    const vsInvested = (p.value / p.invested - 1) * 100;
+    if (vsInvested < lowest.pct) lowest = { pct: vsInvested, point: p };
+    if (p.value >= p.invested) inProfit++;
+  }
+  return { maxDrop, lowest, inProfitPct: (inProfit / series.length) * 100 };
+}
+
 if (typeof module !== "undefined") {
-  module.exports = { priceAt, simulateDca, valueSeries };
+  module.exports = { priceAt, simulateDca, valueSeries, rideStats };
 }

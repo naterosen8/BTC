@@ -22,6 +22,7 @@ node --test tests/*.test.js   # run the calculator tests
 3. [x] Chart of amount put in vs. what it was worth over time, with a table view
 4. [x] Same plan in gold, side by side (Yahoo Finance, with Stooq as backup)
 5. [x] One-time purchase on any date
-6. [ ] The dollar: cash saved, after inflation
-7. [ ] More assets (S&P 500, ...) and a multi-line chart with a log-scale switch
-8. [ ] Explainer: what DCA is, its risks, and how fees and timing change results
+6. [x] How it felt along the way: biggest drop, lowest point vs. put in, days ahead
+7. [ ] The dollar: cash saved, after inflation
+8. [ ] More assets (S&P 500, ...) and a multi-line chart with a log-scale switch
+9. [ ] Explainer: what DCA is, its risks, and how fees and timing change results
